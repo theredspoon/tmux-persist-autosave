@@ -80,8 +80,12 @@ and `_sanitize_session_for_path()` functions. None of that is a documented,
 stable public API — it's how this script stays in sync with tmux-persist's
 own directory-resolution and filename-encoding logic rather than
 reimplementing (and risking drifting from) it, but it does mean an upstream
-refactor could break this script without warning. If tmux-persist ever
-exposes a stable API for this, this script should move to it.
+refactor could rename or remove either function without notice. The script
+checks both exist right after sourcing and aborts with an explicit message
+if not, so a shape change fails loudly and immediately rather than silently
+doing the wrong thing — but it still means this script needs updating
+whenever that happens. If tmux-persist ever exposes a stable API for this,
+this script should move to it.
 
 ## Credits
 
