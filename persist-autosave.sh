@@ -76,6 +76,19 @@ CURRENT_DIR="$TMUX_PERSIST_PLUGIN_DIR/scripts"
 source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
 
+# These are internal, undocumented tmux-persist functions, not a stable
+# public API - an upstream refactor could rename/remove them without notice.
+# Check they still exist as functions before relying on them, so that
+# breaks loudly here with a clear cause instead of silently (e.g. as a
+# mysterious "command not found" deep in the loop below, or worse, PERSIST_DIR
+# resolving to something wrong without any error at all).
+for fn in persist_dir _sanitize_session_for_path; do
+	if ! declare -F "$fn" >/dev/null; then
+		echo "save: $LOG_TS aborted (tmux-persist's internal $fn() not found - it may have changed shape upstream; this script needs updating for the installed tmux-persist version)"
+		exit 1
+	fi
+done
+
 PERSIST_DIR="$(persist_dir)"
 if [ -z "$PERSIST_DIR" ]; then
 	echo "save: $LOG_TS aborted (persist_dir resolved empty; refusing to guess a path)"
