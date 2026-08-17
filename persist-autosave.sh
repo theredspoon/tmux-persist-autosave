@@ -27,22 +27,24 @@ TMUX_PERSIST_PLUGIN_DIR="${TMUX_PERSIST_PLUGIN_DIR:-$HOME/.tmux/plugins/tmux-per
 SAVE_SCRIPT="$TMUX_PERSIST_PLUGIN_DIR/scripts/save.sh"
 LOG_TS="$(date '+%FT%T')"
 
-# Without $TMUX set (true for every launchd invocation - there's no ambient
-# tmux client), tmux's own -F format-string engine silently mangles literal
-# tab characters into underscores in its output, even though plain,
-# non-format commands (tmux ls, has-session, etc.) work completely normally
-# against the same server. tmux-persist's save.sh embeds real tabs as its
-# field delimiter in every -F format string it uses (pane_format,
-# window_format), so every field in every saved session comes out
-# concatenated into one un-parseable blob - the resulting snapshot's layout
-# ends up completely empty, silently, with no error anywhere in the chain.
-# Reproduced and confirmed directly: identical format string, only $TMUX
-# differs, tabs intact with it set, mangled to "_" without.
+# launchd's environment has no ambient tmux client, so $TMUX is unset, AND
+# no LANG/LC_ALL/LC_CTYPE (locale) - it turns out to be that combination,
+# not just $TMUX alone, that makes tmux's own -F format-string engine
+# silently mangle literal tab characters into underscores in its output,
+# even though plain, non-format commands (tmux ls, has-session, etc.) work
+# completely normally against the same server either way. tmux-persist's
+# save.sh embeds real tabs as its field delimiter in every -F format string
+# it uses (pane_format, window_format), so every field in every saved
+# session comes out concatenated into one un-parseable blob - the resulting
+# snapshot's layout ends up empty, silently, with no error anywhere in the
+# chain. Verified directly: with locale env vars stripped, tabs survive if
+# either $TMUX or a real LANG is present, and mangle only when both are
+# absent - so setting $TMUX ourselves here is sufficient without needing to
+# also set a locale.
 #
-# Setting $TMUX ourselves is enough to avoid this even though nothing is
-# genuinely attached - tmux's format engine keys off whether $TMUX identifies
-# a session, not whether a real client is present. The pid/window-id fields
-# don't need to be real for this.
+# The pid/window-id fields in the fallback value below don't need to be
+# real for this - tmux's format engine only needs $TMUX to identify a
+# session, not a genuinely attached client.
 if [ -z "${TMUX:-}" ]; then
 	TMUX_SOCKET="${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/default"
 	if [ -S "$TMUX_SOCKET" ]; then
