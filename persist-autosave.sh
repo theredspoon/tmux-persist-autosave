@@ -27,6 +27,29 @@ TMUX_PERSIST_PLUGIN_DIR="${TMUX_PERSIST_PLUGIN_DIR:-$HOME/.tmux/plugins/tmux-per
 SAVE_SCRIPT="$TMUX_PERSIST_PLUGIN_DIR/scripts/save.sh"
 LOG_TS="$(date '+%FT%T')"
 
+# Without $TMUX set (true for every launchd invocation - there's no ambient
+# tmux client), tmux's own -F format-string engine silently mangles literal
+# tab characters into underscores in its output, even though plain,
+# non-format commands (tmux ls, has-session, etc.) work completely normally
+# against the same server. tmux-persist's save.sh embeds real tabs as its
+# field delimiter in every -F format string it uses (pane_format,
+# window_format), so every field in every saved session comes out
+# concatenated into one un-parseable blob - the resulting snapshot's layout
+# ends up completely empty, silently, with no error anywhere in the chain.
+# Reproduced and confirmed directly: identical format string, only $TMUX
+# differs, tabs intact with it set, mangled to "_" without.
+#
+# Setting $TMUX ourselves is enough to avoid this even though nothing is
+# genuinely attached - tmux's format engine keys off whether $TMUX identifies
+# a session, not whether a real client is present. The pid/window-id fields
+# don't need to be real for this.
+if [ -z "${TMUX:-}" ]; then
+	TMUX_SOCKET="${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/default"
+	if [ -S "$TMUX_SOCKET" ]; then
+		export TMUX="${TMUX_SOCKET},0,0"
+	fi
+fi
+
 # Log lines below use paths relative to $HOME so a shared log doesn't leak
 # the local username in every line.
 short_path() { printf '%s' "${1/#$HOME/\~}"; }
